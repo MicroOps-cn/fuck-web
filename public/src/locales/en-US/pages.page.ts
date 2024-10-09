@@ -1,0 +1,16 @@
+export default {
+  'pages.page.button.create': 'Create',
+  'pages.page.button.edit': 'Edit',
+  'pages.page.button.option': 'Option',
+  'pages.page.gird': 'Gird',
+  'pages.page.layout': 'Layout of labels',
+  'pages.page.message.disableFailed': 'Disable failed, please try again',
+  'pages.page.message.disableSuccessd': 'Disabled successfully and will refresh soon',
+  'pages.page.message.disabling': 'Disabling ...',
+  'pages.page.message.enableFailed': 'Enable failed, please try again',
+  'pages.page.message.enableSuccessd': 'Enabled successfully and will refresh soon',
+  'pages.page.message.enabling': 'Enabling ...',
+  'pages.page.message.removeFailed': 'Remove failed, please try again',
+  'pages.page.message.removeSuccessd': 'Remove successfully and will refresh soon',
+  'pages.page.message.removing': 'Removing ...',
+};
