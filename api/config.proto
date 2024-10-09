@@ -1,0 +1,106 @@
+syntax = "proto3";
+import "types/ldap.proto";
+import "types/email.proto";
+import "types/geoip.proto";
+import "types/oauth2.proto";
+import public "gogoproto/gogo.proto";
+package fuck_web.config;
+option go_package = "github.com/MicroOps-cn/fuck-web/config;config";
+
+
+message custom_type {}
+message StorageRef{
+  Storage storage = 1;
+  string path = 2;
+  string name = 3;
+}
+
+message Storage{
+  string name = 1;
+  oneof source{
+    StorageRef ref = 10;
+    custom_type mysql = 11[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/gorm.MySQLClient"]; // MySQL Database Config
+    custom_type redis = 12[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/redis.Client"]; // Redis Database Config
+    fuck_web.client.ldap.LdapOptions ldap = 13[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/client/ldap.Client"]; // LdapDatabaseConfig
+    custom_type sqlite = 14[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/gorm.SQLiteClient"]; // MySQL Database Config
+  };
+}
+
+message Storages{
+  Storage default = 1;
+  Storage session = 2;
+  Storage user = 3;
+  Storage logging = 4;
+  fuck_web.client.geoip.GeoIPOptions geoip = 15[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/client/geoip.Client"]; // MySQL Database Config
+}
+
+message GlobalOptions{
+  custom_type max_upload_size = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/capacity.Capacities", (gogoproto.nullable) = false];
+  custom_type max_body_size = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/capacity.Capacities", (gogoproto.nullable) = false];
+  string upload_path = 3;
+  string workspace = 4;
+  string app_name = 7;
+  string title = 10;
+  string sub_title = 11;
+  string logo = 12;
+  string copyright = 13;
+  string admin_email = 14;
+}
+
+enum LoginType {
+  normal = 0;
+  email = 4;
+  sms = 5;
+  oauth2 = 6;
+}
+
+message RateLimit{
+  string name = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/wrapper.OneOrMore[string]", (gogoproto.nullable) = false];
+  string allower = 2[(gogoproto.customtype) = "Limiter", (gogoproto.nullable) = false, (gogoproto.jsontag) = "-"];
+  string limit = 3;
+  int32 burst = 4;
+}
+
+message SecurityOptions{
+  repeated string trust_ip = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNet"];
+  LoginType default_login_type = 2;
+  repeated LoginType allow_login_type = 3;
+  repeated fuck_web.client.oauth2.Options oauth2 = 8;
+  bool disable_login_form = 9;
+  string secret = 5;
+  custom_type jwt = 6[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/jwt.JWTConfig"];
+  repeated RateLimit rate_limit = 7;
+}
+
+message Config {
+  Storages storage = 1;
+  GlobalOptions global = 2;
+  fuck_web.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/client/email.SmtpOptions"];
+  SecurityOptions security = 4;
+  string trace = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/tracing.TraceOptions"];
+}
+
+// @sync-to-public:public/src/services/fuck-web/enums.ts:PasswordComplexity
+enum PasswordComplexity{
+  unsafe = 0;
+  general = 1;
+  safe = 2;
+  very_safe = 3;
+}
+
+message RuntimeSecurityConfig{
+  bool force_enable_mfa = 1[(gogoproto.jsontag) = "forceEnableMfa"];
+  PasswordComplexity  password_complexity = 2[(gogoproto.jsontag) = "passwordComplexity"];
+  uint32 password_min_length = 3[(gogoproto.jsontag) = "passwordMinLength"];
+  uint32 password_expire_time = 4[(gogoproto.jsontag) = "passwordExpireTime"];
+  uint32 password_failed_lock_threshold = 5[(gogoproto.jsontag) = "passwordFailedLockThreshold"];
+  uint32 password_failed_lock_duration = 6[(gogoproto.jsontag) = "passwordFailedLockDuration"];
+  uint32 password_history = 7[(gogoproto.jsontag) = "passwordHistory"];
+  uint32 account_inactive_lock = 8[(gogoproto.jsontag) = "accountInactiveLock"];
+  uint32 login_session_inactivity_time = 9[(gogoproto.jsontag) = "loginSessionInactivityTime"];
+  uint32 login_session_max_time = 10[(gogoproto.jsontag) = "loginSessionMaxTime"];
+}
+
+message RuntimeConfig {
+  RuntimeSecurityConfig security = 1;
+}

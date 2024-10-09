@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkfuck_web_ui=self.webpackChunkfuck_web_ui||[]).push([[390],{96390:function(u,t,e){e.r(t),e.d(t,{default:function(){return f}});e(67294);var n=e(99090),c=e(85893);function f(){var u=(0,n.useOutletContext)();return(0,c.jsx)(n.Outlet,{context:u})}}}]);

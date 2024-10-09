@@ -1,0 +1,130 @@
+syntax = "proto3";
+package fuck_web.endpoint;
+import public "gogoproto/gogo.proto";
+import "endpoints/base.proto";
+import "models/models.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/endpoint;endpoint";
+
+message UserInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required,matches(^[-_A-Za-z0-9]+$)"'];
+  fuck_web.service.models.UserMeta.UserStatus status = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.UserMeta_UserStatus", (gogoproto.nullable) = false];
+  string email = 5;
+  string full_name = 6[(gogoproto.jsontag) = "fullName,omitempty"];
+  string avatar = 7;
+  string phone_number = 8[(gogoproto.jsontag) = "phoneNumber,omitempty"];
+  string role = 9;
+  string role_id = 10[(gogoproto.jsontag) = "roleId,omitempty"];
+  string login_time = 11[(gogoproto.jsontag) = "loginTime,omitempty"];
+  string update_time = 12[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 13[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  bool is_delete = 14[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
+  string extended_data = 15 [(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.UserExt", (gogoproto.jsontag) = "extendedData,omitempty"];
+}
+
+message GetUsersRequest{
+  fuck_web.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  fuck_web.service.models.UserMeta.UserStatus status = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.UserMeta_UserStatus", (gogoproto.nullable) = true];
+}
+
+
+message GetUserResponse{
+  fuck_web.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  UserInfo data = 2;
+}
+
+message GetUsersResponse{
+  fuck_web.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated UserInfo data = 2;
+}
+
+message PatchUserRequest{
+  string id = 1[(gogoproto.moretags) = 'valid:"required,uuid"'];
+  fuck_web.service.models.UserMeta.UserStatus status = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.UserMeta_UserStatus"];
+  bool is_delete = 3[(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDelete,omitempty"];
+}
+
+
+message ResetUserPasswordRequest{
+  string token = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret"];
+  string old_password = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret", (gogoproto.jsontag) = "oldPassword,omitempty"];
+  string user_id = 3[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"optional,uuid"'];
+  string new_password = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret", (gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
+  string username = 6[(gogoproto.moretags) = 'valid:"optional,matches(^[-_A-Za-z0-9]+$)"'];
+}
+
+message ForgotUserPasswordRequest{
+  string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required,matches(^[-_A-Za-z0-9]+$)"'];
+  string email = 2 [(gogoproto.jsontag) = "email", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message DeleteUserRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message UpdateUserRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required,matches(^[-_A-Za-z0-9]+$)"'];
+  fuck_web.service.models.UserMeta.UserStatus status = 3[(gogoproto.jsontag) = "status,omitempty", (gogoproto.nullable) = false, (gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.UserMeta_UserStatus"];
+  string email = 5;
+  string full_name = 6[(gogoproto.jsontag) = "fullName,omitempty"];
+  string avatar = 7;
+  string phone_number = 8[(gogoproto.jsontag) = "phoneNumber,omitempty"];
+  bool is_delete = 9[(gogoproto.jsontag) = "isDelete,omitempty"];
+  string role_id = 10[(gogoproto.jsontag) = "roleId,omitempty"];
+}
+
+message CreateUserRequest{
+  string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required,matches(^[-_A-Za-z0-9]+$)"'];
+  string email = 3;
+  string full_name = 4[(gogoproto.jsontag) = "fullName,omitempty"];
+  string avatar = 5;
+  string  phone_number = 6[(gogoproto.jsontag) = "phoneNumber,omitempty"];
+  fuck_web.service.models.UserMeta.UserStatus status = 7[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.UserMeta_UserStatus"];
+  bool is_delete = 9[(gogoproto.jsontag) = "isDelete,omitempty"];
+  string role_id = 10[(gogoproto.jsontag) = "roleId,omitempty"];
+}
+
+message GetUserRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message SendActivationMailRequest{
+  string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message ActivateAccountRequest{
+  string token = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret"];
+  string user_id = 2[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string new_password = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret", (gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message CreateTOTPSecretRequest{
+  string token = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret"];
+}
+
+message CreateTOTPSecretResponseData{
+  string secret = 2[(gogoproto.jsontag) = "secret"];
+  string token = 3[(gogoproto.jsontag) = "token"];
+}
+
+message CreateTOTPSecretResponse{
+  fuck_web.endpoint.BaseResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  CreateTOTPSecretResponseData data = 2;
+}
+
+message CreateTOTPRequest{
+  string token = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret", (gogoproto.jsontag) = "token", (gogoproto.moretags) = 'valid:"required"'];
+  string first_code = 2[(gogoproto.jsontag) = "firstCode", (gogoproto.moretags) = 'valid:"required"'];
+  string second_code = 3[(gogoproto.jsontag) = "secondCode", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message PatchCurrentUserRequest{
+  bool email_as_mfa = 1[(gogoproto.customtype) = "bool"];
+  bool sms_as_mfa = 2[(gogoproto.customtype) = "bool"];
+  bool totp_as_mfa = 3[(gogoproto.customtype) = "bool"];
+}
+
+message PatchCurrentUserResponse{
+  fuck_web.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+}

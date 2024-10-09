@@ -1,0 +1,60 @@
+syntax = "proto3";
+package fuck_web.endpoint;
+import public "gogoproto/gogo.proto";
+import "endpoints/base.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/endpoint;endpoint";
+
+
+message PermissionInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.customtype) = "string"];
+  bool enable_auth = 5[(gogoproto.jsontag) = "enableAuth,omitempty"];
+  string parent_id = 6[(gogoproto.jsontag) = "parentId,omitempty", (gogoproto.customtype) = "string"];
+  string description = 7;
+}
+
+message RoleInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name"];
+  string describe = 5;
+  repeated PermissionInfo permission = 6;
+}
+
+message GetRolesRequest{
+  fuck_web.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+}
+
+message GetRolesResponse{
+  fuck_web.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated RoleInfo data = 2;
+}
+
+message CreateRoleRequest{
+  string name = 1[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+  string description = 2;
+  repeated string permission = 3;
+}
+
+message UpdateRoleRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+  string description = 3;
+  repeated string permission = 4;
+}
+
+message DeleteRoleRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message GetPermissionsRequest{
+  fuck_web.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+}
+
+message GetPermissionsResponse{
+  fuck_web.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated PermissionInfo data = 2;
+}

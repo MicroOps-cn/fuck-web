@@ -1,0 +1,21 @@
+syntax = "proto3";
+package fuck_web.client.ldap;
+import public "gogoproto/gogo.proto";
+import "types/tls.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/client/ldap;ldap";
+
+
+message LdapOptions{
+  string host = 1;
+  string manager_dn = 2;
+  string manager_password = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/safe.String"];
+  string user_search_base = 4;
+  string user_search_filter = 5;
+  string attr_username = 9;
+  string attr_email = 10;
+  string attr_user_display_name = 11;
+  string attr_user_phone_no = 12;
+  bool is_tls = 13[(gogoproto.customname) = "IsTLS"];
+  bool start_tls = 14[(gogoproto.customname) = "StartTLS"];
+  fuck_web.client.tls.TLSOptions tls = 15[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/tls.TLSOptions", (gogoproto.customname) = "TLS"];
+}

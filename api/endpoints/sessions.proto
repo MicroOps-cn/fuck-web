@@ -1,0 +1,98 @@
+syntax = "proto3";
+package fuck_web.endpoint;
+import public "gogoproto/gogo.proto";
+import "endpoints/base.proto";
+import "models/models.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/endpoint;endpoint";
+
+message GetSessionsRequest{
+  fuck_web.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  string user_id = 2[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message SessionInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string create_time = 2[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string expiry = 3[(gogoproto.jsontag) = "expiry", (gogoproto.moretags) = 'valid:"required"'];
+  string last_seen = 4[(gogoproto.jsontag) = "lastSeen,omitempty"];
+}
+
+message GetSessionsResponse{
+  fuck_web.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated SessionInfo data = 2;
+}
+
+message DeleteSessionRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message AuthenticationRequest{
+  string username = 1;
+  string password = 2;
+  fuck_web.service.models.AuthMeta.Method auth_method = 3[(gogoproto.jsontag) = "authMethod,omitempty"];
+  string auth_algorithm = 4[(gogoproto.jsontag) = "authAlgorithm,omitempty", (gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/utils/sign.AuthAlgorithm", (gogoproto.nullable) = false];
+  string auth_key = 5[(gogoproto.jsontag) = "authKey,omitempty"];
+  string auth_secret = 6[(gogoproto.jsontag) = "authSecret,omitempty"];
+  string auth_sign = 7[(gogoproto.jsontag) = "authSign,omitempty"];
+  string payload = 8[(gogoproto.jsontag) = "-"];
+}
+
+// @sync-to-public:public/src/services/fuck-web/enums.ts:LoginType
+enum LoginType {
+  normal = 0;
+  mfa_totp = 1;
+  mfa_email = 2;
+  mfa_sms = 3;
+  email = 4;
+  sms = 5;
+  oauth2 = 6;
+  enable_mfa_totp = 10;
+  enable_mfa_email = 11;
+  enable_mfa_sms = 12;
+}
+
+message UserLoginRequest{
+  string username = 1;
+  string email = 2[(gogoproto.moretags) = 'valid:"email"'];
+  string phone = 3;
+  string password = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/service/models.Secret", (gogoproto.jsontag) = "password,omitempty", (gogoproto.nullable) = false];
+  bool auto_login = 5[(gogoproto.jsontag) = "autoLogin,omitempty"];
+  LoginType type = 6;
+  string code = 7;
+  string token = 8;
+  string first_code = 9[(gogoproto.jsontag) = "firstCode,omitempty"];
+  string second_code = 10[(gogoproto.jsontag) = "secondCode,omitempty"];
+  string binding_token = 11[(gogoproto.jsontag) = "bindingToken,omitempty"];
+}
+message UserLoginResponseData{
+  string  token = 1;
+  repeated LoginType next_method = 2 [(gogoproto.jsontag) = "nextMethod"];
+  string email = 3;
+  string phone_number = 4;
+}
+message UserLoginResponse{
+  fuck_web.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  UserLoginResponseData data = 2;
+}
+
+message SendLoginCaptchaRequest{
+  string username = 1;
+  LoginType type = 2[(gogoproto.jsontag) = "type", (gogoproto.moretags) = 'valid:"required"'];
+  string email = 3[(gogoproto.moretags) = 'valid:"email"'];
+  string phone = 4;
+}
+
+message SendLoginCaptchaResponseData{
+  string token = 1;
+}
+
+message SendLoginCaptchaResponse{
+  fuck_web.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  SendLoginCaptchaResponseData data = 2;
+}
+
+message OAuthLoginRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string state = 2;
+  string code = 3;
+}

@@ -1,0 +1,32 @@
+syntax = "proto3";
+package fuck_web.endpoint;
+import public "gogoproto/gogo.proto";
+import "endpoints/sessions.proto";
+import "endpoints/base.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/endpoint;endpoint";
+
+message GlobalLoginType{
+  LoginType type = 1[(gogoproto.jsontag) = "type"];
+  string name = 2;
+  string icon = 3 ;
+  bool auto_login = 4[(gogoproto.jsontag) = "autoLogin,omitempty"];
+  bool auto_redirect = 5[(gogoproto.jsontag) = "autoRedirect,omitempty"];
+  string id = 6;
+}
+
+message GlobalConfig{
+  repeated GlobalLoginType login_type = 1[(gogoproto.jsontag) = "loginType"];
+  string title = 2;
+  string sub_title = 3[(gogoproto.jsontag) = "subTitle,omitempty"];
+  string logo = 4;
+  string copyright = 5;
+  LoginType DefaultLoginType = 6[(gogoproto.jsontag) = "defaultLoginType"];
+  string version = 7;
+  string external_url = 8;
+  string admin_url = 9;
+}
+
+message GlobalConfigResponse{
+  fuck_web.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  GlobalConfig data = 2;
+}

@@ -1,0 +1,15 @@
+syntax = "proto3";
+package fuck_web.client.geoip;
+import public "gogoproto/gogo.proto";
+import public "google/protobuf/duration.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/client/geoip;geoip";
+
+message CustomGeoOptions{
+  string name = 1;
+  string subnets = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNets", (gogoproto.nullable) = false];
+}
+
+message GeoIPOptions{
+  string path = 1;
+  repeated CustomGeoOptions custom = 2;
+}
