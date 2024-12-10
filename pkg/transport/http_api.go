@@ -27,6 +27,12 @@ var apiServiceSet = []func(ctx context.Context, options []httptransport.ServerOp
 
 var serviceGeneratorSet []ServiceGenerator
 
+type ServiceGeneratorFunc func(context.Context, []httptransport.ServerOption, endpoint.Set) (spec.Tag, []*restful.WebService)
+
+func (w ServiceGeneratorFunc) WebServices(ctx context.Context, options []httptransport.ServerOption, set endpoint.Set) (spec.Tag, []*restful.WebService) {
+	return w(ctx, options, set)
+}
+
 type ServiceGenerator interface {
 	WebServices(context.Context, []httptransport.ServerOption, endpoint.Set) (spec.Tag, []*restful.WebService)
 }
@@ -39,7 +45,7 @@ func RegisterServiceGenerator(g ...ServiceGenerator) {
 func UserService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "users", Description: "Managing users"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -125,7 +131,7 @@ func UserService(ctx context.Context, options []httptransport.ServerOption, endp
 func FileService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "files", Description: "Managing files"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("").
@@ -152,7 +158,7 @@ func FileService(ctx context.Context, options []httptransport.ServerOption, endp
 func SessionService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "sessions", Description: "Managing sessions"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -177,7 +183,7 @@ func SessionService(ctx context.Context, options []httptransport.ServerOption, e
 func CurrentUserService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "Current user service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("/login").
@@ -339,7 +345,7 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 func PermissionService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "permissions", Description: "permissions service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -356,7 +362,7 @@ func PermissionService(ctx context.Context, options []httptransport.ServerOption
 func RoleService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "roles", Description: "role service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -408,7 +414,7 @@ func RoleService(ctx context.Context, options []httptransport.ServerOption, endp
 func ConfigService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "config", Description: "config service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("security").
@@ -433,7 +439,7 @@ func ConfigService(ctx context.Context, options []httptransport.ServerOption, en
 func EventService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "events", Description: "event service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -460,7 +466,7 @@ func EventService(ctx context.Context, options []httptransport.ServerOption, end
 func GlobalService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "global", Description: "Global service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("config").
@@ -473,4 +479,59 @@ func GlobalService(ctx context.Context, options []httptransport.ServerOption, en
 	)
 
 	return tag, []*restful.WebService{v1ws}
+}
+
+func XXLJobService(gv schema.GroupVersion) func(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	return func(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+		tag := spec.Tag{TagProps: spec.TagProps{Name: gv.Group, Description: "xxl Job service."}}
+		tags := []string{tag.Name}
+		v1ws := NewWebService(RootPath, gv, tag.Description)
+
+		v1ws.Route(v1ws.POST("/run").
+			To(NewSimpleKitHTTPServer[endpoint.RunJobRequest](ctx, endpoints.ExecutorRunJob, DecodeHTTPRequest[endpoint.RunJobRequest], endpoint.DecodeJobHTTPResponse, options)).
+			Operation("runJob").
+			Consumes(restful.MIME_JSON).
+			Reads(endpoint.RunJobRequest{}).
+			Doc("run a job from xxljob").
+			Metadata(restfulspec.KeyOpenAPITags, tags).
+			Returns(200, "OK", endpoint.BaseJobResponse{}),
+		)
+
+		v1ws.Route(v1ws.POST("/beat").
+			To(NewSimpleKitHTTPServer[endpoint.RunJobRequest](ctx, endpoints.ExecutorBeat, DecodeHTTPRequest[any], endpoint.DecodeJobHTTPResponse, options)).
+			Operation("jobBeat").
+			Consumes(restful.MIME_JSON).
+			Doc("check executor is beat").
+			Metadata(restfulspec.KeyOpenAPITags, tags).
+			Returns(200, "OK", endpoint.BaseJobResponse{}),
+		)
+		v1ws.Route(v1ws.POST("/idleBeat").
+			To(NewSimpleKitHTTPServer[endpoint.JobIdleBeatRequest](ctx, endpoints.ExecutorIdleBeat, DecodeHTTPRequest[endpoint.JobIdleBeatRequest], endpoint.DecodeJobHTTPResponse, options)).
+			Operation("jobIdle").
+			Consumes(restful.MIME_JSON).
+			Doc("check executor is idle").
+			Metadata(restfulspec.KeyOpenAPITags, tags).
+			Returns(200, "OK", endpoint.BaseJobResponse{}),
+		)
+
+		v1ws.Route(v1ws.POST("/kill").
+			To(NewSimpleKitHTTPServer[endpoint.KillJobRequest](ctx, endpoints.ExecutorKill, DecodeHTTPRequest[endpoint.KillJobRequest], endpoint.DecodeJobHTTPResponse, options)).
+			Operation("runJob").
+			Consumes(restful.MIME_JSON).
+			Reads(endpoint.KillJobRequest{}).
+			Doc("kill a job").
+			Metadata(restfulspec.KeyOpenAPITags, tags).
+			Returns(200, "OK", endpoint.BaseJobResponse{}),
+		)
+		v1ws.Route(v1ws.POST("/log").
+			To(NewSimpleKitHTTPServer[endpoint.JobLogRequest](ctx, endpoints.ExecutorLog, DecodeHTTPRequest[endpoint.JobLogRequest], endpoint.DecodeJobHTTPResponse, options)).
+			Operation("getJobLog").
+			Consumes(restful.MIME_JSON).
+			Reads(endpoint.JobLogRequest{}).
+			Doc("get a job log").
+			Metadata(restfulspec.KeyOpenAPITags, tags).
+			Returns(200, "OK", endpoint.JobLogResponse{}),
+		)
+		return tag, []*restful.WebService{v1ws}
+	}
 }

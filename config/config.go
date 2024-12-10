@@ -16,6 +16,7 @@ import (
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/afero"
 
 	"github.com/MicroOps-cn/fuck-web/pkg/client/oauth2"
@@ -343,4 +344,49 @@ func (x *Config) GetJwtIssuer() jwt.JWTIssuer {
 		return nil
 	}
 	return x.Security.Jwt
+}
+
+func NewConfig() *Config {
+	return &Config{
+		Global:   NewGlobalOptions(),
+		Storage:  &Storages{},
+		Security: &SecurityOptions{},
+		Job: &JobOptions{
+			Scheduler: &JobOptions_Scheduler{
+				SchedulerBackend: &JobOptions_Scheduler_Local{
+					Local: &JobOptions_LocalScheduler{},
+				},
+			},
+		},
+	}
+}
+
+func ConfigHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf(Config{}) {
+			return data, nil
+		}
+
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(data); err != nil {
+			return nil, fmt.Errorf("error encode config: %s", err)
+		}
+
+		c := NewConfig()
+
+		var unmarshaler jsonpb.Unmarshaler
+		if err := unmarshaler.Unmarshal(&buf, c); err != nil {
+			return nil, fmt.Errorf("error unmarshal config: %s", err)
+		} else if err = c.Init(); err != nil {
+			return nil, fmt.Errorf("error init config: %s", err)
+		}
+		if c.Job.Scheduler == nil {
+			c.Job.Scheduler = &JobOptions_Scheduler{
+				SchedulerBackend: &JobOptions_Scheduler_Local{
+					Local: &JobOptions_LocalScheduler{},
+				},
+			}
+		}
+		return c, nil
+	}
 }

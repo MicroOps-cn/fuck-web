@@ -216,3 +216,7 @@ func (v Values) Strings() (vals []string) {
 	}
 	return vals
 }
+
+type nopResponse struct{}
+
+var NopResponse nopResponse

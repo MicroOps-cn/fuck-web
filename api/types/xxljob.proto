@@ -1,0 +1,13 @@
+syntax = "proto3";
+package fuck_web.client.xxljob;
+import public "gogoproto/gogo.proto";
+option go_package = "github.com/MicroOps-cn/fuck-web/pkg/client/xxljob;xxljob";
+
+message Options{
+  string  server_address = 1[(gogoproto.moretags) = 'mapstructure:"server_address"'];
+  string  local_address = 2[(gogoproto.moretags) = 'mapstructure:"local_address"'];
+  string  app_name = 3[(gogoproto.moretags) = 'mapstructure:"app_name"'];
+  string  token = 4[(gogoproto.moretags) = 'mapstructure:"token"'];
+  string  log_path = 5[(gogoproto.moretags) = 'mapstructure:"log_path"'];
+  int32   concurrency = 6[(gogoproto.moretags) = 'mapstructure:"concurrency"'];
+}

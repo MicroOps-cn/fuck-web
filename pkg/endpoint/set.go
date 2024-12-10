@@ -22,6 +22,14 @@ import (
 	"github.com/MicroOps-cn/fuck-web/pkg/service/models"
 )
 
+type XXLJobEndpoints struct {
+	ExecutorBeat     endpoint.Endpoint ` auth:"false" audit:"false"`
+	ExecutorIdleBeat endpoint.Endpoint ` auth:"false" audit:"false"`
+	ExecutorKill     endpoint.Endpoint ` auth:"false" audit:"false"`
+	ExecutorLog      endpoint.Endpoint ` auth:"false" audit:"false"`
+	ExecutorRunJob   endpoint.Endpoint ` auth:"false" audit:"false"`
+}
+
 type UserEndpoints struct {
 	GetUsers          endpoint.Endpoint `description:"Get user list" role:"admin|viewer" audit:"false"`
 	DeleteUsers       endpoint.Endpoint `description:"Batch delete users" role:"admin" audit:"false"`
@@ -119,6 +127,7 @@ type Set struct {
 	ConfigEndpoints  `name:"Config" description:"System Config Manage"`
 	EventEndpoints   `name:"Event" description:"Event"`
 	GlobalEndpoints  `name:"Global" description:"Global"`
+	XXLJobEndpoints  `name:"XXLJob" description:"XXlJob"`
 }
 
 func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
@@ -178,99 +187,141 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 	return ret
 }
 
+var (
+	permissions models.Permissions = nil
+	endpointSet                    = sets.New[string]()
+)
+
 // New returns a Set that wraps the provided server, and wires in all of the
 // expected endpoint middlewares via the various parameters.
 func New(ctx context.Context, svc service.Service, duration metrics.Histogram) Set {
-	logger := log.GetContextLogger(ctx)
-	ps := Set{}.GetPermissionsDefine()
-
-	var eps = sets.New[string]()
-	injectEndpoint := func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
-		if eps.Has(name) {
-			panic("duplicate endpoint: " + name)
-		}
-		psd := ps.Get(name)
-		if len(psd) == 0 {
-			panic("endpoint not found: " + name)
-		} else if len(psd) > 1 {
-			panic("duplicate endpoint define: " + name)
-		}
-		eps.Insert(name)
-		if psd[0].RateLimit != nil {
-			level.Debug(logger).Log("msg", "Injection rate limited to endpoints", "endpoint", name, "limit", psd[0].RateLimit)
-			ep = ratelimit.NewErroringLimiter(psd[0].RateLimit)(ep)
-		}
-		ep = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(ep)
-		ep = LoggingMiddleware(svc, name, ps)(ep)
-		if duration != nil {
-			ep = InstrumentingMiddleware(duration, name)(ep)
-		}
-		if psd[0].EnableAuth {
-			ep = AuthorizationMiddleware(svc, name)(ep)
-		}
-		return ep
+	injectStdEndpoint := func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
+		return WithMiddleware(ctx, name, svc, duration, ep)
+	}
+	injectEndpoint := func(name string, ep Endpoint) endpoint.Endpoint {
+		return WithMiddleware(ctx, name, svc, duration, func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			return ep(ctx, request)
+		})
 	}
 
 	return Set{
 		FileEndpoints: FileEndpoints{
-			UploadFile:   injectEndpoint("UploadFile", MakeUploadFileEndpoint(svc)),
-			DownloadFile: injectEndpoint("DownloadFile", MakeDownloadFileEndpoint(svc)),
+			UploadFile:   injectStdEndpoint("UploadFile", MakeUploadFileEndpoint(svc)),
+			DownloadFile: injectStdEndpoint("DownloadFile", MakeDownloadFileEndpoint(svc)),
 		},
 		UserEndpoints: UserEndpoints{
-			CurrentUser:       injectEndpoint("CurrentUser", MakeCurrentUserEndpoint(svc)),
-			ResetPassword:     injectEndpoint("ResetPassword", MakeResetUserPasswordEndpoint(svc)),
-			ForgotPassword:    injectEndpoint("ForgotPassword", MakeForgotPasswordEndpoint(svc)),
-			GetUsers:          injectEndpoint("GetUsers", MakeGetUsersEndpoint(svc)),
-			DeleteUsers:       injectEndpoint("DeleteUsers", MakeDeleteUsersEndpoint(svc)),
-			PatchUsers:        injectEndpoint("PatchUsers", MakePatchUsersEndpoint(svc)),
-			UpdateUser:        injectEndpoint("UpdateUser", MakeUpdateUserEndpoint(svc)),
-			GetUserInfo:       injectEndpoint("GetUserInfo", MakeGetUserInfoEndpoint(svc)),
-			CreateUser:        injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
-			PatchUser:         injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
-			DeleteUser:        injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
-			CreateTOTPSecret:  injectEndpoint("CreateTOTPSecret", MakeCreateTOTPSecretEndpoint(svc)),
-			CreateTOTP:        injectEndpoint("CreateTOTP", MakeCreateTOTPEndpoint(svc)),
-			SendLoginCaptcha:  injectEndpoint("SendLoginCaptcha", MakeSendLoginCaptchaEndpoint(svc)),
-			UpdateCurrentUser: injectEndpoint("UpdateCurrentUser", MakeUpdateCurrentUserEndpoint(svc)),
-			PatchCurrentUser:  injectEndpoint("PatchCurrentUser", MakePatchCurrentUserEndpoint(svc)),
-			ActivateAccount:   injectEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
-			SendActivateMail:  injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
+			CurrentUser:       injectStdEndpoint("CurrentUser", MakeCurrentUserEndpoint(svc)),
+			ResetPassword:     injectStdEndpoint("ResetPassword", MakeResetUserPasswordEndpoint(svc)),
+			ForgotPassword:    injectStdEndpoint("ForgotPassword", MakeForgotPasswordEndpoint(svc)),
+			GetUsers:          injectStdEndpoint("GetUsers", MakeGetUsersEndpoint(svc)),
+			DeleteUsers:       injectStdEndpoint("DeleteUsers", MakeDeleteUsersEndpoint(svc)),
+			PatchUsers:        injectStdEndpoint("PatchUsers", MakePatchUsersEndpoint(svc)),
+			UpdateUser:        injectStdEndpoint("UpdateUser", MakeUpdateUserEndpoint(svc)),
+			GetUserInfo:       injectStdEndpoint("GetUserInfo", MakeGetUserInfoEndpoint(svc)),
+			CreateUser:        injectStdEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
+			PatchUser:         injectStdEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
+			DeleteUser:        injectStdEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
+			CreateTOTPSecret:  injectStdEndpoint("CreateTOTPSecret", MakeCreateTOTPSecretEndpoint(svc)),
+			CreateTOTP:        injectStdEndpoint("CreateTOTP", MakeCreateTOTPEndpoint(svc)),
+			SendLoginCaptcha:  injectStdEndpoint("SendLoginCaptcha", MakeSendLoginCaptchaEndpoint(svc)),
+			UpdateCurrentUser: injectStdEndpoint("UpdateCurrentUser", MakeUpdateCurrentUserEndpoint(svc)),
+			PatchCurrentUser:  injectStdEndpoint("PatchCurrentUser", MakePatchCurrentUserEndpoint(svc)),
+			ActivateAccount:   injectStdEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
+			SendActivateMail:  injectStdEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
-			GetSessions:              injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
-			GetCurrentUserSessions:   injectEndpoint("GetCurrentUserSessions", MakeGetCurrentUserSessionsEndpoint(svc)),
-			DeleteCurrentUserSession: injectEndpoint("DeleteCurrentUserSession", MakeDeleteCurrentUserSessionEndpoint(svc)),
-			DeleteSession:            injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
-			UserLogin:                injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
-			UserOAuthLogin:           injectEndpoint("UserOAuthLogin", MakeUserOAuthLoginEndpoint(svc)),
-			Authentication:           injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
-			UserLogout:               injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
-			GetSessionByToken:        injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
+			GetSessions:              injectStdEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
+			GetCurrentUserSessions:   injectStdEndpoint("GetCurrentUserSessions", MakeGetCurrentUserSessionsEndpoint(svc)),
+			DeleteCurrentUserSession: injectStdEndpoint("DeleteCurrentUserSession", MakeDeleteCurrentUserSessionEndpoint(svc)),
+			DeleteSession:            injectStdEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
+			UserLogin:                injectStdEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
+			UserOAuthLogin:           injectStdEndpoint("UserOAuthLogin", MakeUserOAuthLoginEndpoint(svc)),
+			Authentication:           injectStdEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
+			UserLogout:               injectStdEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
+			GetSessionByToken:        injectStdEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
 		},
 		RoleEndpoints: RoleEndpoints{
-			GetRoles:       injectEndpoint("GetRoles", MakeGetRolesEndpoint(svc)),
-			DeleteRoles:    injectEndpoint("DeleteRoles", MakeDeleteRolesEndpoint(svc)),
-			CreateRole:     injectEndpoint("CreateRole", MakeCreateRoleEndpoint(svc)),
-			UpdateRole:     injectEndpoint("UpdateRole", MakeUpdateRoleEndpoint(svc)),
-			DeleteRole:     injectEndpoint("DeleteRole", MakeDeleteRoleEndpoint(svc)),
-			GetPermissions: injectEndpoint("GetPermissions", MakeGetPermissionsEndpoint(svc)),
+			GetRoles:       injectStdEndpoint("GetRoles", MakeGetRolesEndpoint(svc)),
+			DeleteRoles:    injectStdEndpoint("DeleteRoles", MakeDeleteRolesEndpoint(svc)),
+			CreateRole:     injectStdEndpoint("CreateRole", MakeCreateRoleEndpoint(svc)),
+			UpdateRole:     injectStdEndpoint("UpdateRole", MakeUpdateRoleEndpoint(svc)),
+			DeleteRole:     injectStdEndpoint("DeleteRole", MakeDeleteRoleEndpoint(svc)),
+			GetPermissions: injectStdEndpoint("GetPermissions", MakeGetPermissionsEndpoint(svc)),
 		},
 		ConfigEndpoints: ConfigEndpoints{
-			GetSecurityConfig:   injectEndpoint("GetSecurityConfig", MakeGetSecurityConfigEndpoint(svc)),
-			PatchSecurityConfig: injectEndpoint("PatchSecurityConfig", MakePatchSecurityConfigEndpoint(svc)),
+			GetSecurityConfig:   injectStdEndpoint("GetSecurityConfig", MakeGetSecurityConfigEndpoint(svc)),
+			PatchSecurityConfig: injectStdEndpoint("PatchSecurityConfig", MakePatchSecurityConfigEndpoint(svc)),
 		},
 		EventEndpoints: EventEndpoints{
-			GetEvents:               injectEndpoint("GetEvents", MakeGetEventsEndpoint(svc)),
-			GetEventLogs:            injectEndpoint("GetEventLogs", MakeGetEventLogsEndpoint(svc)),
-			GetCurrentUserEvents:    injectEndpoint("GetCurrentUserEvents", MakeGetCurrentUserEventsEndpoint(svc)),
-			GetCurrentUserEventLogs: injectEndpoint("GetCurrentUserEventLogs", MakeGetCurrentUserEventLogsEndpoint(svc)),
+			GetEvents:               injectStdEndpoint("GetEvents", MakeGetEventsEndpoint(svc)),
+			GetEventLogs:            injectStdEndpoint("GetEventLogs", MakeGetEventLogsEndpoint(svc)),
+			GetCurrentUserEvents:    injectStdEndpoint("GetCurrentUserEvents", MakeGetCurrentUserEventsEndpoint(svc)),
+			GetCurrentUserEventLogs: injectStdEndpoint("GetCurrentUserEventLogs", MakeGetCurrentUserEventLogsEndpoint(svc)),
 		},
 		GlobalEndpoints: GlobalEndpoints{
-			GetGlobalConfig: injectEndpoint("GetGlobalConfig", MakeGetGlobalConfigEndpoint(svc)),
+			GetGlobalConfig: injectStdEndpoint("GetGlobalConfig", MakeGetGlobalConfigEndpoint(svc)),
+		},
+		XXLJobEndpoints: XXLJobEndpoints{
+			ExecutorBeat:     injectEndpoint("ExecutorBeat", MakeExecutorBeatEndpoint(svc)),
+			ExecutorIdleBeat: injectEndpoint("ExecutorIdleBeat", MakeExecutorIdleBeatEndpoint(svc)),
+			ExecutorKill:     injectEndpoint("ExecutorKill", MakeExecutorKillEndpoint(svc)),
+			ExecutorLog:      injectEndpoint("ExecutorLog", MakeExecutorLogEndpoint(svc)),
+			ExecutorRunJob:   injectEndpoint("ExecutorRunJob", MakeExecutorRunJobEndpoint(svc)),
 		},
 	}
 }
 
 func (s Set) GetPermissionsDefine() models.Permissions {
 	return GetPermissionsDefine(reflect.TypeOf(s))
+}
+
+func GetPermissions() models.Permissions {
+	if permissions == nil {
+		for _, set := range registeredEndpointSet {
+			permissions = append(permissions, GetPermissionsDefine(reflect.TypeOf(set))...)
+		}
+	}
+	return permissions
+}
+
+var registeredEndpointSet []interface{}
+
+func RegisterEndpointSet(set ...interface{}) {
+	registeredEndpointSet = append(registeredEndpointSet, set...)
+}
+
+func init() {
+	RegisterEndpointSet(&Set{})
+}
+func WithMiddleware(ctx context.Context, name string, svc service.Service, dur metrics.Histogram, ep endpoint.Endpoint) endpoint.Endpoint {
+
+	logger := log.GetContextLogger(ctx)
+	if permissions == nil {
+		for _, set := range registeredEndpointSet {
+			permissions = append(permissions, GetPermissionsDefine(reflect.TypeOf(set))...)
+		}
+	}
+	if endpointSet.Has(name) {
+		panic("duplicate endpoint: " + name)
+	}
+	psd := permissions.Get(name)
+	if len(psd) == 0 {
+		panic("endpoint not found: " + name)
+	} else if len(psd) > 1 {
+		panic("duplicate endpoint define: " + name)
+	}
+	endpointSet.Insert(name)
+	if psd[0].RateLimit != nil {
+		level.Debug(logger).Log("msg", "Injection rate limited to endpoints", "endpoint", name, "limit", psd[0].RateLimit)
+		ep = ratelimit.NewErroringLimiter(psd[0].RateLimit)(ep)
+	}
+	ep = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(ep)
+	ep = LoggingMiddleware(svc, name, permissions)(ep)
+	if dur != nil {
+		ep = InstrumentingMiddleware(dur, name)(ep)
+	}
+	if psd[0].EnableAuth {
+		ep = AuthorizationMiddleware(svc, name)(ep)
+	}
+	return ep
 }

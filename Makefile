@@ -58,8 +58,8 @@ pkgs          = ./...
 
 GitCommit   = $(shell git rev-parse --short HEAD 2>/dev/null)
 BuildDate   = $(shell date +%Y-%m-%dT%H:%M:%S%Z)
-GoVersion   = $(shell go version|awk '{print $$3}')
-Platform    = $(shell go version|awk '{print $$4}')
+GoVersion   = $(shell $(GO) version|awk '{print $$3}')
+Platform    = $(shell $(GO) version|awk '{print $$4}')
 Version     ?= $(shell cat version)
 LDFlags     := -w -s -X 'lampao/pkg/utils/version.GitCommit=$(GitCommit)'
 LDFlags     += -X 'lampao/pkg/utils/version.BuildDate=$(BuildDate)'
@@ -121,7 +121,7 @@ common-check_license:
 
 .PHONY: fuck-web
 fuck-web:
-	CGO_ENABLED=0 go build -ldflags="$(LDFlags)" -o dist/fuck-web ./cmd/fuck-web
+	CGO_ENABLED=0 $(GO) build -ldflags="$(LDFlags)" -o dist/fuck-web ./cmd/fuck-web
 
 .PHONY: common-lint
 common-lint: $(GOLANGCI_LINT)
@@ -140,13 +140,13 @@ endif
 
 .PHONY: test
 test:
-	go test -tags make_test -cover -race -count=1 ./...
+	$(GO) test -tags make_test -cover -race -count=1 ./...
 
 .PHONY: openapi
 openapi:
-	go run cmd/openapi/main.go -o public/config/fuck-web.json
+	$(GO) run cmd/openapi/main.go -o public/config/fuck-web.json
 	cd public && yarn openapi
-	go run scripts/sync_to_public.go
+	$(GO) run scripts/sync_to_public.go
 
 .PHONY: ui
 ui:

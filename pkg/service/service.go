@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
@@ -87,6 +88,8 @@ type Service interface {
 	VerifyWeakPassword(ctx context.Context, password string) error
 	UpdateTokenExpires(ctx context.Context, id string, expiry time.Time) error
 	GetUserRole(ctx context.Context, id string) (*models.Role, error)
+	GetDB() *gorm.Client
+	JobService
 }
 
 type Set struct {
@@ -95,6 +98,12 @@ type Set struct {
 	commonService  CommonService
 	loggingService LoggingService
 	geoIPClient    *geoip.Client
+	db             *gorm.Client
+	JobService
+}
+
+func (s Set) GetDB() *gorm.Client {
+	return s.db
 }
 
 func (s Set) GetEvents(ctx context.Context, filters map[string]string, keywords string, startTime, endTime time.Time, current int64, size int64) (count int64, event []*models.Event, err error) {
@@ -238,6 +247,12 @@ func (s Set) InitData(ctx context.Context, username string) error {
 	return nil
 }
 
+var registeredModels []interface{}
+
+func RegisterModel(model interface{}) {
+	registeredModels = append(registeredModels, model)
+}
+
 func (s Set) AutoMigrate(ctx context.Context) error {
 	svcs := []baseService{
 		s.commonService, s.sessionService, s.userService, s.loggingService,
@@ -247,18 +262,28 @@ func (s Set) AutoMigrate(ctx context.Context) error {
 			return err
 		}
 	}
+	if len(registeredModels) > 0 {
+		return s.GetDB().Session(ctx).AutoMigrate(registeredModels...)
+	}
 	return nil
 }
 
 // New returns a basic Service with all of the expected middlewares wired in.
-func New(ctx context.Context) Service {
+func New(ctx context.Context) (Service, error) {
+	jobSvc, err := NewJobService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var defaultDB = NewDefaultDB()
 	return &Set{
 		userService:    NewUserAndAppService(ctx),
 		sessionService: NewSessionService(ctx),
 		commonService:  NewCommonService(ctx),
 		loggingService: NewLoggingService(ctx),
 		geoIPClient:    config.Get().GetStorage().Geoip,
-	}
+		db:             defaultDB,
+		JobService:     jobSvc,
+	}, nil
 }
 
 type UserService interface {

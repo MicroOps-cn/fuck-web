@@ -126,12 +126,12 @@ func AuthorizationMiddleware(svc service.Service, method string) endpoint.Middle
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); !ok || needLogin {
 				if user, ok := ctx.Value(global.MetaUser).(*models.User); !ok || user == nil {
-					return nil, errors.NewServerError(401, "need login")
+					return nil, errors.NewServerError(401, "endpoint: need login")
 				} else if !svc.Authorization(ctx, user, method) {
 					if forceOk, ok := ctx.Value(global.MetaForceOk).(bool); ok && forceOk {
 						return nil, nil
 					}
-					return nil, errors.NewServerError(403, "forbidden")
+					return nil, errors.NewServerError(403, "endpoint: forbidden")
 				}
 			}
 			return next(ctx, request)

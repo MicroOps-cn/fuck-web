@@ -47,7 +47,10 @@ var weakPasswordImportCmd = &cobra.Command{
 			return err
 		}
 		ch := signals.SetupSignalHandler(logs.GetContextLogger(ctx))
-		svc := service.New(cmd.Context())
+		svc, err := service.New(cmd.Context())
+		if err != nil {
+			return err
+		}
 		scanner := bufio.NewScanner(f)
 		var batch []string
 
@@ -85,7 +88,10 @@ var weakPasswordVerifyCmd = &cobra.Command{
 			return errors.New("clear text password cannot be empty")
 		}
 		ctx := cmd.Context()
-		svc := service.New(cmd.Context())
+		svc, err := service.New(cmd.Context())
+		if err != nil {
+			return err
+		}
 		if err := svc.VerifyWeakPassword(ctx, verifyPassword); err != nil {
 			fmt.Println(err)
 		}
@@ -104,4 +110,5 @@ func init() {
 func AddWeakPasswordCommand(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(weakPasswordCmd)
 	weakPasswordCmd.PreRun = rootCmd.PreRun
+	weakPasswordCmd.PreRunE = rootCmd.PreRunE
 }

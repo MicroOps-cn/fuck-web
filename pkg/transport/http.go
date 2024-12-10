@@ -89,7 +89,6 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 		m.Add(restfulspec.NewOpenAPIService(specConf))
 	}
 	adminPrefix := ctx.Value(global.HTTPWebPrefixKey).(string)
-	fmt.Println(adminPrefix)
 	m.Handle(adminPrefix, http.StripPrefix(adminPrefix, NewStaticFileServer(ctx, w.M[fs.FS](fs.Sub(staticFs, "static")))))
 	m.Handle("/healthz", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write([]byte("ok\n"))
@@ -357,7 +356,15 @@ func DecodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 
 // encodeHTTPResponse Encode the response as an HTTP response message
 func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	if response == httputil.NopResponse {
+		return nil
+	}
 	logger := logs.GetContextLogger(ctx)
+	valOf := reflect.ValueOf(response)
+	if valOf.Kind() != reflect.Ptr {
+		errorEncoder(ctx, errors.NewServerError(500, fmt.Sprintf("result data must be a pointer")), w)
+		return nil
+	}
 	if f, ok := response.(kitendpoint.Failer); ok && f.Failed() != nil {
 		errorEncoder(ctx, f.Failed(), w)
 		return nil
@@ -367,7 +374,6 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 	resp := responseWrapper{Success: true, TraceId: traceId}
 	if l, ok := response.(endpoint.Lister); ok {
 		resp.Data = l.GetData()
-
 		resp.Total = l.GetTotal()
 		resp.PageSize = l.GetPageSize()
 		resp.Current = l.GetCurrent()
@@ -377,7 +383,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		}
 		if t, ok := response.(endpoint.HasData); ok {
 			resp.Data = t.GetData()
-		} else {
+		} else if _, ok := response.(endpoint.BaseResponser); !ok {
 			resp.Data = response
 		}
 	}
@@ -459,7 +465,7 @@ func NewSimpleWebService(rootPath string, doc string) *restful.WebService {
 	return &webservice
 }
 
-const rootPath = "/api"
+const RootPath = "/api"
 
 func StructToQueryParams(obj interface{}, nameFilter ...string) []*restful.Parameter {
 	var params []*restful.Parameter

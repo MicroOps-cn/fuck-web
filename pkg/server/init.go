@@ -33,11 +33,14 @@ var initDataCmd = &cobra.Command{
 }
 
 func InitData(ctx context.Context, _ *signals.Handler) {
-	svc := service.New(ctx)
+	svc, err := service.New(ctx)
+	if err != nil {
+		panic(err)
+	}
 	if err := svc.AutoMigrate(ctx); err != nil {
 		panic(err)
 	}
-	if err := svc.RegisterPermission(ctx, endpoint.Set{}.GetPermissionsDefine()); err != nil {
+	if err := svc.RegisterPermission(ctx, endpoint.GetPermissions()); err != nil {
 		panic(err)
 	}
 	if err := svc.InitData(ctx, adminUsername); err != nil {
@@ -57,4 +60,5 @@ func init() {
 func AddInitCommand(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(initDataCmd)
 	initDataCmd.PreRun = rootCmd.PreRun
+	initDataCmd.PreRunE = rootCmd.PreRunE
 }

@@ -8,15 +8,19 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 	//revive:disable:blank-imports
 	_ "net/http/pprof"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/MicroOps-cn/fuck-web/config"
 	"github.com/MicroOps-cn/fuck-web/pkg/endpoint"
 	"github.com/MicroOps-cn/fuck-web/pkg/global"
 	"github.com/MicroOps-cn/fuck-web/pkg/service"
+	"github.com/MicroOps-cn/fuck-web/pkg/service/models"
 	"github.com/MicroOps-cn/fuck-web/pkg/transport"
 	"github.com/MicroOps-cn/fuck-web/pkg/utils/httputil"
 	"github.com/MicroOps-cn/fuck/clients/tracing"
@@ -61,6 +65,10 @@ func (s *Server) Run() error {
 	return s.g.Run()
 }
 
+func (s *Server) Add(execute func() error, interrupt func(error)) {
+	s.g.Add(execute, interrupt)
+}
+
 func (s *Server) GetService() service.Service {
 	return s.svc
 }
@@ -69,7 +77,7 @@ func (s *Server) GetRequestDuration() metrics.Histogram {
 	return s.requestDuration
 }
 
-func New(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (server *Server, err error) {
+func New(ctx context.Context, name string, logger kitlog.Logger, stopCh *signals.Handler) (server *Server, err error) {
 	var s Server
 	{
 		if traceOptions := config.Get().Trace; traceOptions != nil {
@@ -104,9 +112,19 @@ func New(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (se
 		ctx = context.WithValue(ctx, global.HTTPWebPrefixKey, adminPrefix)
 
 		level.Info(logger).Log("msg", "Start service", "externalUrl", httpExternalURL, "adminPrefix", adminPrefix, "loginUrl", httpLoginURL)
-		s.svc = service.New(ctx)
+		s.svc, err = service.New(ctx)
+		if err != nil {
+			return nil, err
+		}
 		if err = s.svc.LoadSystemConfig(ctx); err != nil {
-			panic(fmt.Errorf("failed to load system config: %s", err))
+			if strings.Contains(err.Error(), "no such table") {
+				if err = s.svc.GetDB().Session(ctx).AutoMigrate(&models.SystemConfig{}); err != nil {
+					panic(fmt.Errorf("failed to load system config: %s", err))
+				}
+			}
+			if err = s.svc.LoadSystemConfig(ctx); err != nil {
+				panic(fmt.Errorf("failed to load system config: %s", err))
+			}
 		}
 	}
 
@@ -135,6 +153,7 @@ func New(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (se
 			level.Error(logger).Log("transport", "HTTP", "during", "Listen", "err", err)
 			os.Exit(1)
 		}
+
 		s.g.Add(func() error {
 			httpServer := http.NewServeMux()
 			if len(swaggerPath) > 0 && len(openapiPath) > 0 && len(swaggerFilePath) > 0 {
@@ -148,7 +167,6 @@ func New(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (se
 					level.Error(logger).Log("msg", " swagger UI local path is not directory, so disable that.")
 				}
 			}
-
 			endpoints := endpoint.New(ctx, s.svc, s.requestDuration)
 			httpHandler := transport.NewHTTPHandler(ctx, logger, endpoints, openapiPath)
 			level.Info(logger).Log("msg", "Listening port", "transport", "HTTP", "addr", httpAddr)
@@ -156,11 +174,51 @@ func New(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (se
 			serv := http.Server{Handler: httpServer, BaseContext: func(listener net.Listener) context.Context {
 				return ctx
 			}}
+
 			return serv.Serve(httpListener)
 		}, func(error) {
 			httpListener.Close()
 			level.Debug(logger).Log("msg", "Listen closed", "transport", "HTTP", "addr", httpAddr)
 		})
+
+		if _, ok := config.Get().Job.Scheduler.GetSchedulerBackend().(*config.JobOptions_Scheduler_XXLJob); ok {
+			level.Debug(logger).Log("msg", "enable XXLJob service")
+			jobGroupVersion := schema.GroupVersion{Group: "job", Version: "v1"}
+			transport.RegisterServiceGenerator(transport.ServiceGeneratorFunc(transport.XXLJobService(jobGroupVersion)))
+			ctx2, logger2 := log.NewContextLogger(ctx)
+			_, port, _ := strings.Cut(httpAddr, ":")
+			if len(port) == 0 {
+				port = "80"
+			}
+			s.Add(func() error {
+				jobRoot := fmt.Sprintf("%s/%s", transport.RootPath, jobGroupVersion.String())
+				if err = s.svc.Register(ctx2, name, w.M(strconv.Atoi(port)), jobRoot); err != nil {
+					level.Error(logger2).Log("service", "Job", "during", "Register", "err", err)
+					return err
+				}
+				dur := time.NewTicker(time.Second * 30)
+				for {
+					select {
+					case <-ctx.Done():
+						return nil
+					case <-dur.C:
+						traceId := log.NewTraceId()
+						newCtx, newLogger := log.NewContextLogger(ctx, log.WithTraceId(traceId), log.WithLogger(log.NewNopLogger()))
+						err = s.svc.Register(newCtx, name, w.M(strconv.Atoi(port)), jobRoot)
+						if err != nil {
+							level.Error(newLogger).Log("service", "Job", "during", "Register", "err", err)
+						}
+					}
+				}
+			}, func(err error) {
+				ctx2, logger2 = log.NewContextLogger(context.Background())
+				if err = s.svc.Unregister(ctx2); err != nil {
+					level.Error(logger2).Log("msg", "failed to unregister from job server", "err", err)
+				} else {
+					level.Info(logger2).Log("msg", "success to unregister from job server")
+				}
+			})
+		}
 	}
 	{
 		stopCh.Add(1)

@@ -3,6 +3,7 @@ import "types/ldap.proto";
 import "types/email.proto";
 import "types/geoip.proto";
 import "types/oauth2.proto";
+import "types/xxljob.proto";
 import public "gogoproto/gogo.proto";
 package fuck_web.config;
 option go_package = "github.com/MicroOps-cn/fuck-web/config;config";
@@ -72,12 +73,31 @@ message SecurityOptions{
   repeated RateLimit rate_limit = 7;
 }
 
+message JobCron{
+  string name = 1[(gogoproto.moretags) = 'mapstructure:"name"'];
+  string expr = 2[(gogoproto.moretags) = 'mapstructure:"expr"'];
+  string params = 3[(gogoproto.moretags) = 'mapstructure:"params"'];
+  string timeout = 4[(gogoproto.customtype) = "time.Duration", (gogoproto.moretags) = 'mapstructure:"timeout"'];
+}
+message JobOptions {
+  message LocalScheduler{}
+  message Scheduler{
+    oneof SchedulerBackend{
+      LocalScheduler local = 1;
+      fuck_web.client.xxljob.Options xxljob = 2[(gogoproto.customname) = "XXLJob"];
+    }
+  }
+  Scheduler scheduler = 1;
+  repeated JobCron cron = 2;
+}
+
 message Config {
   Storages storage = 1;
   GlobalOptions global = 2;
   fuck_web.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck-web/pkg/client/email.SmtpOptions"];
   SecurityOptions security = 4;
   string trace = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/tracing.TraceOptions"];
+  JobOptions job = 6;
 }
 
 // @sync-to-public:public/src/services/fuck-web/enums.ts:PasswordComplexity

@@ -40,11 +40,14 @@ var migrateCmd = &cobra.Command{
 }
 
 func Migrate(ctx context.Context, _ *signals.Handler) {
-	svc := service.New(ctx)
+	svc, err := service.New(ctx)
+	if err != nil {
+		panic(err)
+	}
 	if err := svc.AutoMigrate(ctx); err != nil {
 		panic(err)
 	}
-	if err := svc.RegisterPermission(ctx, endpoint.Set{}.GetPermissionsDefine()); err != nil {
+	if err := svc.RegisterPermission(ctx, endpoint.GetPermissions()); err != nil {
 		panic(err)
 	}
 }
@@ -52,4 +55,5 @@ func Migrate(ctx context.Context, _ *signals.Handler) {
 func AddMigrateCommand(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(migrateCmd)
 	migrateCmd.PreRun = rootCmd.PreRun
+	migrateCmd.PreRunE = rootCmd.PreRunE
 }

@@ -37,7 +37,10 @@ var userAddCmd = &cobra.Command{
 	Long:  `create user.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logs.GetDefaultLogger()
-		svc := service.New(cmd.Context())
+		svc, err := service.New(cmd.Context())
+		if err != nil {
+			level.Error(logger).Log("msg", err.Error())
+		}
 		if password == "-" {
 			p, err := gopass.GetPasswdPrompt("please input password: ", true, os.Stdin, os.Stderr)
 			if err != nil {
@@ -85,4 +88,5 @@ func init() {
 func AddUserCommand(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(userCmd)
 	userCmd.PreRun = rootCmd.PreRun
+	userCmd.PreRunE = rootCmd.PreRunE
 }

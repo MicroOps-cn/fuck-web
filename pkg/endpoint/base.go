@@ -1,12 +1,22 @@
 package endpoint
 
 import (
+	"context"
 	"net/http"
 
 	restful "github.com/emicklei/go-restful/v3"
 
 	"github.com/MicroOps-cn/fuck-web/pkg/errors"
 )
+
+type BaseResponser interface {
+	GetTraceId() string
+	GetSuccess() bool
+	GetErrorCode() string
+	GetErrorMessage() string
+	Failed() error
+	GetData() interface{}
+}
 
 type Lister interface {
 	GetPageSize() int64
@@ -61,7 +71,7 @@ func NewBaseListResponse[T any](req *BaseListRequest) ListResponseWrapper[T] {
 
 type SimpleResponseWrapper[DataType any] struct {
 	BaseResponse
-	Data DataType
+	Data DataType `json:"data"`
 }
 
 func (l SimpleResponseWrapper[T]) GetData() interface{} {
@@ -70,7 +80,7 @@ func (l SimpleResponseWrapper[T]) GetData() interface{} {
 
 type TotalResponseWrapper[DataType any] struct {
 	BaseTotalResponse
-	Data DataType
+	Data DataType `json:"data"`
 }
 
 func (l TotalResponseWrapper[T]) GetData() interface{} {
@@ -79,9 +89,15 @@ func (l TotalResponseWrapper[T]) GetData() interface{} {
 
 type ListResponseWrapper[DataType any] struct {
 	BaseListResponse
-	Data DataType
+	Data DataType `json:"data"`
 }
 
 func (l ListResponseWrapper[T]) GetData() interface{} {
 	return l.Data
 }
+
+func (l BaseResponse) GetData() interface{} {
+	return nil
+}
+
+type Endpoint func(ctx context.Context, request interface{}) (response BaseResponser, err error)

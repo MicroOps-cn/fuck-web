@@ -65,8 +65,12 @@ func WithAppConfigFlags(flags *pflag.FlagSet) {
 	flags.Var(&appSessionNameHandler{}, "app.session-name", "The session/cookie name used during login.")
 }
 
+func SetAppName(name string) error {
+	return (&appNameHandler{}).Set(name)
+}
+
 func init() {
-	err := (&appNameHandler{}).Set(AppName)
+	err := SetAppName(AppName)
 	if err != nil {
 		fmt.Println("invalid app name", err)
 		os.Exit(1)
@@ -91,4 +95,5 @@ const (
 	HTTPExternalURLKey          = "__http_external_url__"
 	HTTPLoginURLKey             = "__http_login_url__"
 	HTTPWebPrefixKey            = "__http_web_prefix__"
+	AllowUnknownFields          = "__allow_unknown_fields__"
 )

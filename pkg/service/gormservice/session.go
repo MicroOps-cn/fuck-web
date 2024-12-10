@@ -3,6 +3,7 @@ package gormservice
 import (
 	"context"
 	"crypto/md5"
+	"strings"
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
@@ -40,10 +41,16 @@ loop:
 		logger := logs.NewTraceLogger()
 		conn := s.Session(ctx)
 		if err := conn.Where("expiry < ?", time.Now().UTC()).Delete(&models.Token{}).Error; err != nil {
-			level.Error(logger).Log("msg", "Failed to delete expired token.", "err", err)
+			if err = s.Session(ctx).AutoMigrate(&models.Token{}); err != nil {
+				level.Error(logger).Log("msg", "Failed to delete expired token.", "err", err)
+			}
 		}
 		if err := conn.Where("expire_time < ?", time.Now().UTC()).Delete(&models.Counter{}).Error; err != nil {
-			level.Error(logger).Log("msg", "Failed to delete expired counter.", "err", err)
+			if strings.Contains(err.Error(), "no such table") {
+				if err = s.Session(ctx).AutoMigrate(&models.Counter{}); err != nil {
+					level.Error(logger).Log("msg", "Failed to delete expired counter.", "err", err)
+				}
+			}
 		}
 		select {
 		case <-ticker.C:

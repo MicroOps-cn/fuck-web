@@ -158,6 +158,13 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		Global:   NewGlobalOptions(),
 		Storage:  &Storages{},
 		Security: &SecurityOptions{},
+		Job: &JobOptions{
+			Scheduler: &JobOptions_Scheduler{
+				SchedulerBackend: &JobOptions_Scheduler_Local{
+					Local: &JobOptions_LocalScheduler{},
+				},
+			},
+		},
 	}
 
 	var unmarshaler jsonpb.Unmarshaler

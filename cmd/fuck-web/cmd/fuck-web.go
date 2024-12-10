@@ -45,7 +45,7 @@ var rootCmd = &cobra.Command{
 			cancelFunc()
 		}()
 		ctx = context.WithValue(ctx, "command", cmd.Use)
-		s, err := server.New(ctx, logger, ch)
+		s, err := server.New(ctx, cmd.Name(), logger, ch)
 		if err != nil {
 			return err
 		}

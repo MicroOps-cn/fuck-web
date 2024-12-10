@@ -161,6 +161,7 @@ func writeLoginCookie(ctx context.Context, writer http.ResponseWriter, token str
 
 func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		logger := logs.GetContextLogger(ctx)
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
 		stdReq := request.(RestfulRequester).GetRestfulRequest()
 		req := request.(Requester).GetRequestData().(*OAuthLoginRequest)
@@ -258,10 +259,17 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					if len(userInfo.RoleId) == 0 {
 						userInfo.Role = user.Role
+						err = s.UpdateUser(ctx, userInfo, "role_id")
+						if err != nil {
+							level.Warn(logger).Log("msg", "failed to update user role", "user", user.String(), "err", err)
+						}
 					}
 					if len(userInfo.Avatar) == 0 {
 						userInfo.Avatar = user.Avatar
-						_ = s.PatchUser(ctx, map[string]interface{}{"id": userInfo.Id, "avatar": user.Avatar})
+						err = s.PatchUser(ctx, map[string]interface{}{"id": userInfo.Id, "avatar": user.Avatar})
+						if err != nil {
+							level.Warn(logger).Log("msg", "failed to update user avatar", "user", user.String(), "err", err)
+						}
 					}
 					sess, err := s.CreateToken(ctx, models.TokenTypeLoginSession, userInfo)
 					if err != nil {

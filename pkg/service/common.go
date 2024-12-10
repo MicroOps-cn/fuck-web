@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	"github.com/MicroOps-cn/fuck/conv"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
@@ -185,4 +186,17 @@ func (s Set) InsertWeakPassword(ctx context.Context, passwords ...string) error 
 
 func (s Set) VerifyWeakPassword(ctx context.Context, password string) error {
 	return s.commonService.VerifyWeakPassword(ctx, password)
+}
+
+func NewDefaultDB() *gorm.Client {
+	commonStorage := config.Get().GetStorage().GetDefault()
+	switch commonSource := commonStorage.GetStorageSource().(type) {
+	case *config.Storage_Mysql:
+		return commonSource.Mysql.Client
+	case *config.Storage_Sqlite:
+		return commonSource.Sqlite.Client
+	default:
+		panic(fmt.Sprintf("failed to initialize CommonService: unknown data source: %T", commonSource))
+	}
+	return nil
 }
