@@ -36,7 +36,7 @@ type CommonService interface {
 	GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error)
 	GetUsersExtendedData(ctx context.Context, id []string) ([]*models.UserExt, error)
 	PatchUserExtData(ctx context.Context, id string, patch map[string]interface{}) error
-	PatchUserRole(ctx context.Context, id string, roleId string) error
+	PatchUserRole(ctx context.Context, id string, roleName, roleId string) error
 	GetUserRole(ctx context.Context, id string) (role *models.Role, err error)
 
 	CreateTOTP(ctx context.Context, ids string, secret string) error

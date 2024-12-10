@@ -500,12 +500,18 @@ func (c *CommonService) GetUserRole(ctx context.Context, id string) (role *model
 	return &userRole, nil
 }
 
-func (c *CommonService) PatchUserRole(ctx context.Context, id string, roleId string) error {
+func (c *CommonService) PatchUserRole(ctx context.Context, id string, roleName, roleId string) error {
 	role := models.UserRole{UserId: id, RoleId: roleId}
 	conn := c.Session(ctx)
 	if len(roleId) == 0 {
-		return conn.Delete(&role).Error
+		if len(roleName) == 0 {
+			return conn.Delete(&role).Error
+		}
+		if err := c.Session(ctx).Select("id").Model(&models.Role{}).Where("name = ?", roleName).Scan(&roleId).Error; err != nil {
+			return err
+		}
 	}
+
 	return conn.Assign(models.UserRole{RoleId: roleId}).FirstOrCreate(&role).Error
 }
 

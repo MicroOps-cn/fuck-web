@@ -6,10 +6,12 @@ import (
 
 	gogorm "gorm.io/gorm"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
+	"github.com/MicroOps-cn/fuck/sets"
+	w "github.com/MicroOps-cn/fuck/wrapper"
+
 	"github.com/MicroOps-cn/fuck-web/pkg/errors"
 	"github.com/MicroOps-cn/fuck-web/pkg/service/models"
-	"github.com/MicroOps-cn/fuck/clients/gorm"
-	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
 func (c *CommonService) CreateRole(ctx context.Context, role *models.Role) (err error) {
@@ -109,11 +111,36 @@ func (c CommonService) DeleteRoles(ctx context.Context, ids []string) error {
 }
 
 func (c CommonService) CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error {
+	newPermissions := role.Permission
+	newPermissionNames := sets.New[string](w.Map(newPermissions, func(item *models.Permission) string {
+		return item.Name
+	})...)
+	role.Permission = make([]*models.Permission, 0)
 	conn := c.Session(ctx)
 	if err := conn.Omit("Permission").FirstOrCreate(&role, "name = ?", role.Name).Error; err != nil {
 		return err
 	}
-	return conn.Model(role).Association("Permission").Replace(role.Permission)
+	if err := conn.Model(role).Association("Permission").Find(&role.Permission); err != nil {
+		return err
+	}
+	oldPermissions := role.Permission
+	oldPermissionNames := sets.New[string](w.Map(oldPermissions, func(item *models.Permission) string {
+		return item.Name
+	})...)
+	needRemove := w.Map(oldPermissionNames.Difference(newPermissionNames).List(), func(name string) *models.Permission {
+		return w.Find(oldPermissions, func(item *models.Permission) bool { return item.Name == name })
+	})
+	needInsert := w.Map(newPermissionNames.Difference(oldPermissionNames).List(), func(name string) *models.Permission {
+		return w.Find(newPermissions, func(item *models.Permission) bool { return item.Name == name })
+	})
+	if err := conn.Model(role).Association("Permission").Append(&needInsert); err != nil {
+		return err
+	}
+	if err := conn.Model(role).Association("Permission").Delete(&needRemove); err != nil {
+		return err
+	}
+	role.Permission = append(role.Permission, needInsert...)
+	return nil
 }
 
 func (c CommonService) RegisterPermission(ctx context.Context, permissions models.Permissions) error {

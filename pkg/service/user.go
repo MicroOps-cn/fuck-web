@@ -88,7 +88,7 @@ func (s Set) UpdateUser(ctx context.Context, user *models.User, updateColumns ..
 		return err
 	}
 	if len(updateColumns) == 0 || w.Has(updateColumns, "role_id", w.StringEqual) {
-		return s.commonService.PatchUserRole(ctx, user.Id, user.RoleId)
+		return s.commonService.PatchUserRole(ctx, user.Id, user.Role, user.RoleId)
 	}
 	return
 }
@@ -151,7 +151,7 @@ func (s Set) CreateUser(ctx context.Context, user *models.User) (err error) {
 	if err = s.GetUserService().CreateUser(ctx, user); err != nil {
 		return err
 	}
-	return s.commonService.PatchUserRole(ctx, user.Id, user.RoleId)
+	return s.commonService.PatchUserRole(ctx, user.Id, "", user.RoleId)
 }
 
 // PatchUser
@@ -171,7 +171,9 @@ func (s Set) PatchUser(ctx context.Context, user map[string]interface{}) (err er
 	}
 
 	if roleId, ok := user["role_id"].(string); ok {
-		return s.commonService.PatchUserRole(ctx, id, roleId)
+		return s.commonService.PatchUserRole(ctx, id, "", roleId)
+	} else if roleName, ok := user["role"].(string); ok {
+		return s.commonService.PatchUserRole(ctx, id, roleName, "")
 	}
 	return nil
 }
