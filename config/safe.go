@@ -35,10 +35,16 @@ var (
 	safeCfg = newSafeConfig()
 )
 
+type onChange struct {
+	f        func(o, n *Config) error
+	fallback func(o, n *Config)
+}
+
 type safeConfig struct {
 	sync.RWMutex
-	C  *Config
-	RC *RuntimeConfig
+	C         *Config
+	RC        *RuntimeConfig
+	onChanges []onChange
 }
 
 func newSafeConfig() *safeConfig {
@@ -86,6 +92,15 @@ func (sc *safeConfig) GetRuntimeConfig() *RuntimeConfig {
 func (sc *safeConfig) SetConfig(conf *Config) {
 	sc.Lock()
 	defer sc.Unlock()
+	if sc.C != nil {
+		for idx, f := range safeCfg.onChanges {
+			if err := f.f(safeCfg.C, conf); err != nil {
+				for i := 0; i <= idx; i++ {
+					safeCfg.onChanges[i].fallback(safeCfg.GetConfig(), conf)
+				}
+			}
+		}
+	}
 	sc.C = conf
 	os.Setenv("APP_NAME", conf.GetAppName())
 }
@@ -228,4 +243,7 @@ func ReloadConfigFromYamlReader(logger log.Logger, r Reader) error {
 
 func SetConfig(cfg *Config) {
 	safeCfg.SetConfig(cfg)
+}
+func OnConfigReload(f func(o, n *Config) error, fallback func(o, n *Config)) {
+	safeCfg.onChanges = append(safeCfg.onChanges, onChange{f: f, fallback: fallback})
 }

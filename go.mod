@@ -41,14 +41,14 @@ require (
 	github.com/tredoe/osutil v1.0.6
 	github.com/xlzd/gotp v0.1.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
-	go.opentelemetry.io/otel v1.24.0
-	go.opentelemetry.io/otel/sdk v1.21.0
-	go.opentelemetry.io/otel/trace v1.24.0
+	go.opentelemetry.io/otel v1.26.0
+	go.opentelemetry.io/otel/sdk v1.24.0
+	go.opentelemetry.io/otel/trace v1.26.0
 	golang.org/x/time v0.5.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/gorm v1.25.1
+	gorm.io/gorm v1.25.10
 	k8s.io/apimachinery v0.23.5
 )
 
@@ -113,7 +113,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.21.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.21.0 // indirect
 	go.opentelemetry.io/otel/exporters/zipkin v1.21.0 // indirect
-	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.26.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
@@ -138,7 +138,7 @@ require (
 )
 
 replace (
-	github.com/emicklei/go-restful/v3 => github.com/MicroOps-cn/go-restful/v3 v3.8.1
 	github.com/emicklei/go-restful-openapi/v2 v2.9.0 => github.com/MicroOps-cn/go-restful-openapi/v2 v2.9.1-1
+	github.com/emicklei/go-restful/v3 => github.com/MicroOps-cn/go-restful/v3 v3.8.1
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df => github.com/MicroOps-cn/gomail/v2 v2.0.1
 )

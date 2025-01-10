@@ -7,24 +7,20 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
 	"os"
-	"runtime"
 	"slices"
 	"sync"
 	"time"
-
-	"github.com/go-kit/kit/metrics/prometheus"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/robfig/cron"
 
 	"github.com/MicroOps-cn/fuck-web/config"
 	"github.com/MicroOps-cn/fuck-web/pkg/client/xxljob"
 	"github.com/MicroOps-cn/fuck/errors"
 	logs "github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/go-kit/kit/metrics/prometheus"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -86,39 +82,6 @@ func RegisterCronJobs(entities ...JobEntry) error {
 	return nil
 }
 
-func NewJobCron(ctx context.Context, cronConfigs []*config.JobCron, svc JobService) (*cron.Cron, error) {
-	cr := cron.New()
-	for idx, cronConfig := range cronConfigs {
-		handler := svc.GetJobHandler(ctx, cronConfig.Name)
-		if handler == nil {
-			return nil, fmt.Errorf("the job `%s` not exists.", cronConfig.Name)
-		}
-
-		logger := logs.GetContextLogger(ctx)
-		level.Info(logger).Log("msg", "add job to cron", "name", cronConfig.Name, "expr", cronConfig.Expr)
-		if err := cr.AddFunc(cronConfig.Expr, func() {
-			traceId := logs.NewTraceId()
-			taskCtx, taskLogger := logs.NewContextLogger(ctx, logs.WithTraceId(traceId))
-			err := svc.RunJob(taskCtx, cronConfig.Name, int32(idx), int32(rand.Int()), traceId, func(ctx context.Context) error {
-				if cronConfig.Timeout != nil && *cronConfig.Timeout != 0 {
-					var cancelFunc context.CancelFunc
-					ctx, cancelFunc = context.WithTimeout(ctx, *cronConfig.Timeout)
-					defer cancelFunc()
-				}
-				return handler(ctx, cronConfig.Params)
-			})
-			if err != nil {
-				level.Error(taskLogger).Log("err", err, "msg", "failed to run job", "name", cronConfig.Name, "expr", cronConfig.Expr)
-				return
-			}
-		}); err != nil {
-			cr.Stop()
-			return nil, err
-		}
-	}
-	return cr, nil
-}
-
 func NewJobService(ctx context.Context) (JobService, error) {
 	jobConfig := config.Get().Job
 	queueSize := 100
@@ -131,16 +94,13 @@ func NewJobService(ctx context.Context) (JobService, error) {
 		jobSvc = &jobService{c: client, taskQueue: taskQueue, register: client.Register, unregister: client.Unregister, jobs: slices.Clone(jobs)}
 		level.Info(logs.GetContextLogger(ctx)).Log("msg", "run in xxljob runner", "concurrency", jobSvc.GetConcurrency())
 	case *config.JobOptions_Scheduler_Local:
-		localSchedule := &localJobSchedule{concurrency: runtime.NumCPU(), cron: cron.New()}
-		jobSvc = &jobService{c: localSchedule, taskQueue: taskQueue, jobs: slices.Clone(jobs)}
-		level.Info(logs.GetContextLogger(ctx)).Log("msg", "run in local runner", "concurrency", jobSvc.GetConcurrency())
-		localSchedule.cron.Start()
-		jobCron, err := NewJobCron(ctx, jobConfig.Cron, jobSvc)
+		jobSvc = &jobService{taskQueue: taskQueue, jobs: slices.Clone(jobs)}
+		localSchedule, err := NewLocalJobSchedule(ctx, jobSvc)
 		if err != nil {
 			return nil, err
 		}
-		localSchedule.cron = jobCron
-		jobCron.Start()
+		jobSvc.(*jobService).c = localSchedule
+		level.Info(logs.GetContextLogger(ctx)).Log("msg", "run in local runner", "concurrency", jobSvc.GetConcurrency())
 	default:
 		return nil, errors.New("Unknown job scheduler")
 	}
@@ -186,6 +146,7 @@ type Task struct {
 type JobClient interface {
 	GetConcurrency() int
 	Callback(ctx context.Context, id int32, code int, msg string) error
+	OnJobHandlerChange(context.Context)
 }
 
 type NopAddFunc[T interface{}] struct {
@@ -229,6 +190,7 @@ func (s *jobService) RegisterJobHandler(ctx context.Context, name string, handle
 		}
 	}
 	s.jobs = append(s.jobs, &JobEntry{Name: name, Handler: handler})
+	s.c.OnJobHandlerChange(ctx)
 	return nil
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/afero"
 
+	github_com_MicroOps_cn_fuck_web_pkg_client_email "github.com/MicroOps-cn/fuck-web/pkg/client/email"
 	"github.com/MicroOps-cn/fuck-web/pkg/client/oauth2"
 	"github.com/MicroOps-cn/fuck-web/pkg/global"
 )
@@ -105,6 +106,15 @@ func (x *Storage) findRef(path string, root interface{}) error {
 	return nil
 }
 
+func fixStorageName(x isStorage_Source, name string) {
+	switch s := x.(type) {
+	case *Storage_Sqlite:
+		s.Sqlite.SetName(name)
+	case *Storage_Mysql:
+		s.Mysql.SetName(name)
+	}
+}
+
 func (x *Config) Init() error {
 	if x.Storage == nil {
 		x.Storage = &Storages{}
@@ -114,18 +124,26 @@ func (x *Config) Init() error {
 		x.Storage.Default = &Storage{
 			Name: "default",
 			Source: &Storage_Sqlite{
-				Sqlite: w.M(gorm.NewSQLiteClient(context.Background(), o)),
+				Sqlite: w.M(gorm.NewSQLiteClient(context.Background(), "default", o)),
 			},
 		}
+	} else {
+		fixStorageName(x.Storage.Default.Source, "default")
 	}
 	if x.Storage.User == nil {
 		x.Storage.User = x.Storage.Default
+	} else {
+		fixStorageName(x.Storage.Default.Source, "user")
 	}
 	if x.Storage.Session == nil {
 		x.Storage.Session = x.Storage.Default
+	} else {
+		fixStorageName(x.Storage.Default.Source, "session")
 	}
 	if x.Storage.Logging == nil {
 		x.Storage.Logging = x.Storage.Default
+	} else {
+		fixStorageName(x.Storage.Default.Source, "logging")
 	}
 	storages := []*Storage{x.Storage.User, x.Storage.Session, x.Storage.Default}
 	for _, storage := range storages {
@@ -361,7 +379,20 @@ func NewConfig() *Config {
 	}
 }
 
-func ConfigHookFunc() mapstructure.DecodeHookFunc {
+type SimpleConfig struct {
+	Global *GlobalOptions                                                `protobuf:"bytes,2,opt,name=global,proto3" json:"global,omitempty"`
+	Smtp   *github_com_MicroOps_cn_fuck_web_pkg_client_email.SmtpOptions `protobuf:"bytes,3,opt,name=smtp,proto3,customtype=github.com/MicroOps-cn/fuck-web/pkg/client/email.SmtpOptions" json:"smtp,omitempty"`
+	Job    *JobOptions                                                   `protobuf:"bytes,6,opt,name=job,proto3" json:"job,omitempty"`
+}
+
+func (s SimpleConfig) Reset() {
+}
+
+func (s SimpleConfig) String() string { return proto.CompactTextString(s) }
+
+func (s SimpleConfig) ProtoMessage() {}
+
+func ConfigHookFunc(ori *Config) mapstructure.DecodeHookFunc {
 	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 		if t != reflect.TypeOf(Config{}) {
 			return data, nil
@@ -372,21 +403,66 @@ func ConfigHookFunc() mapstructure.DecodeHookFunc {
 			return nil, fmt.Errorf("error encode config: %s", err)
 		}
 
-		c := NewConfig()
+		var msg proto.Message
 
-		var unmarshaler jsonpb.Unmarshaler
-		if err := unmarshaler.Unmarshal(&buf, c); err != nil {
-			return nil, fmt.Errorf("error unmarshal config: %s", err)
-		} else if err = c.Init(); err != nil {
-			return nil, fmt.Errorf("error init config: %s", err)
+		if ori != nil {
+			msg = &SimpleConfig{
+				Global: NewGlobalOptions(),
+				Job: &JobOptions{
+					Scheduler: &JobOptions_Scheduler{
+						SchedulerBackend: &JobOptions_Scheduler_Local{
+							Local: &JobOptions_LocalScheduler{},
+						},
+					},
+				},
+			}
+		} else {
+			msg = NewConfig()
 		}
-		if c.Job.Scheduler == nil {
-			c.Job.Scheduler = &JobOptions_Scheduler{
+
+		if err := (&jsonpb.Unmarshaler{AllowUnknownFields: true}).Unmarshal(&buf, msg); err != nil {
+			return nil, fmt.Errorf("error unmarshal config: %s", err)
+		}
+		var cfg *Config
+		switch c := msg.(type) {
+		case *SimpleConfig:
+			cfg = &Config{
+				Global:   c.Global,
+				Smtp:     c.Smtp,
+				Job:      c.Job,
+				Security: ori.Security,
+				Storage:  ori.Storage,
+				Trace:    ori.Trace,
+			}
+		case *Config:
+			if err := c.Init(); err != nil {
+				return nil, fmt.Errorf("error init config: %s", err)
+			}
+			cfg = c
+		default:
+			return nil, fmt.Errorf("unknown config type: %T", msg)
+		}
+		if cfg.Job.Scheduler == nil {
+			cfg.Job.Scheduler = &JobOptions_Scheduler{
 				SchedulerBackend: &JobOptions_Scheduler_Local{
 					Local: &JobOptions_LocalScheduler{},
 				},
 			}
 		}
-		return c, nil
+		return cfg, nil
 	}
+}
+
+func (x Storage) Close() error {
+	switch s := x.Source.(type) {
+	case *Storage_Mysql:
+		return s.Mysql.Close()
+	case *Storage_Sqlite:
+		return s.Sqlite.Close()
+	case *Storage_Redis:
+		return s.Redis.Close()
+	case *Storage_Ldap:
+		s.Ldap.Close()
+	}
+	return nil
 }
